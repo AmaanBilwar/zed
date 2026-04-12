@@ -1742,6 +1742,18 @@ impl Thread {
         self.run_turn(cx)
     }
 
+    pub fn retry(
+        &mut self,
+        cx: &mut Context<Self>,
+    ) -> Result<mpsc::UnboundedReceiver<Result<ThreadEvent>>> {
+        if matches!(self.messages.last(), Some(Message::Agent(message)) if message.tool_results.is_empty())
+        {
+            self.resume(cx)
+        } else {
+            self.send_existing(cx)
+        }
+    }
+
     /// Sending a message results in the model streaming a response, which could include tool calls.
     /// After calling tools, the model will stops and waits for any outstanding tool calls to be completed and their results sent.
     /// The returned channel will report all the occurrences in which the model stops before erroring or ending its turn.

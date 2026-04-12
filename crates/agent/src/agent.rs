@@ -1752,7 +1752,7 @@ impl acp_thread::AgentSessionRetry for NativeAgentSessionRetry {
     fn run(&self, cx: &mut App) -> Task<Result<acp::PromptResponse>> {
         self.connection
             .run_turn(self.session_id.clone(), cx, |thread, cx| {
-                thread.update(cx, |thread, cx| thread.resume(cx))
+                thread.update(cx, |thread, cx| thread.retry(cx))
             })
     }
 }

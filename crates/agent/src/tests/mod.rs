@@ -3663,6 +3663,83 @@ async fn test_send_retry_on_error(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+async fn test_manual_retry_resends_existing_user_message(cx: &mut TestAppContext) {
+    let ThreadTest { thread, model, .. } = setup(cx, TestModel::Fake).await;
+    let fake_model = model.as_fake();
+
+    let _events = thread
+        .update(cx, |thread, cx| {
+            thread.send(UserMessageId::new(), ["which model are you?"], cx)
+        })
+        .unwrap();
+    cx.run_until_parked();
+
+    fake_model.send_last_completion_stream_error(LanguageModelCompletionError::BadRequestFormat {
+        provider: LanguageModelProviderName::new("Test Provider"),
+        message: "bad request".to_string(),
+    });
+    fake_model.end_last_completion_stream();
+    cx.run_until_parked();
+
+    let _retry_events = thread.update(cx, |thread, cx| thread.retry(cx)).unwrap();
+    cx.run_until_parked();
+
+    let completion = fake_model
+        .pending_completions()
+        .pop()
+        .expect("expected retried completion request");
+    let messages = completion.messages[1..]
+        .iter()
+        .map(|message| (message.role, message.content.clone()))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        messages,
+        vec![(Role::User, vec!["which model are you?".into()])]
+    );
+}
+
+#[gpui::test]
+async fn test_manual_retry_resumes_when_previous_message_is_agent(cx: &mut TestAppContext) {
+    let ThreadTest { thread, model, .. } = setup(cx, TestModel::Fake).await;
+    let fake_model = model.as_fake();
+
+    let _events = thread
+        .update(cx, |thread, cx| {
+            thread.send(UserMessageId::new(), ["Hello!"], cx)
+        })
+        .unwrap();
+    cx.run_until_parked();
+
+    fake_model.send_last_completion_stream_text_chunk("Hey,");
+    fake_model.send_last_completion_stream_error(LanguageModelCompletionError::BadRequestFormat {
+        provider: LanguageModelProviderName::new("Test Provider"),
+        message: "bad request".to_string(),
+    });
+    fake_model.end_last_completion_stream();
+    cx.run_until_parked();
+
+    let _retry_events = thread.update(cx, |thread, cx| thread.retry(cx)).unwrap();
+    cx.run_until_parked();
+
+    let completion = fake_model
+        .pending_completions()
+        .pop()
+        .expect("expected resumed completion request");
+    let messages = completion.messages[1..]
+        .iter()
+        .map(|message| (message.role, message.content.clone()))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        messages,
+        vec![
+            (Role::User, vec!["Hello!".into()]),
+            (Role::Assistant, vec![MessageContent::Text("Hey,".into())]),
+            (Role::User, vec!["Continue where you left off".into()]),
+        ]
+    );
+}
+
+#[gpui::test]
 async fn test_send_retry_finishes_tool_calls_on_error(cx: &mut TestAppContext) {
     let ThreadTest { thread, model, .. } = setup(cx, TestModel::Fake).await;
     let fake_model = model.as_fake();
