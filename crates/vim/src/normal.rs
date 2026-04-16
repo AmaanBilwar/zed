@@ -730,7 +730,7 @@ impl Vim {
                     .into_iter()
                     .map(|row| {
                         let indent = snapshot
-                            .indent_and_comment_for_line(MultiBufferRow(row), cx)
+                            .indent_and_comment_for_line(MultiBufferRow(row.saturating_sub(1)), cx)
                             .chars()
                             .collect::<String>();
 
