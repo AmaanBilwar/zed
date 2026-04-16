@@ -20,7 +20,6 @@
 .swiftpm/config/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .venv
-.vscode
 .wrangler
 .perf-runs
 /assets/*licenses.*
@@ -40,7 +39,6 @@ xcuserdata/
 crates/docs_preprocessor/actions.json
 
 # Don't commit any secrets to the repo.
-.env
 .env.secret.toml
 
 # `nix build` output
@@ -54,3 +52,4 @@ crates/docs_preprocessor/actions.json
 # Local documentation audit files
 /december-2025-releases.md
 /docs/december-2025-documentation-gaps.md
+config.bat
